@@ -187,8 +187,9 @@ class ScraperEngine:
                         else:
                             auth_token = account.get("token")
                             acc_phone = account.get("phone")
+                            contact_uuid = full_info.get("contact_uuid")
                             
-                            contact_res = self.api.get_contact_info(token, auth_token)
+                            contact_res = self.api.get_contact_info(token, auth_token, contact_uuid=contact_uuid)
                             if contact_res.get("success"):
                                 phone_extracted = contact_res.get("phone_number")
                                 self.auth_manager.record_usage(acc_phone, success=True)
@@ -200,7 +201,7 @@ class ScraperEngine:
                                 # Try one more active account if exists
                                 next_acc = self.auth_manager.get_active_account()
                                 if next_acc:
-                                    contact_res2 = self.api.get_contact_info(token, next_acc.get("token"))
+                                    contact_res2 = self.api.get_contact_info(token, next_acc.get("token"), contact_uuid=contact_uuid)
                                     if contact_res2.get("success"):
                                         phone_extracted = contact_res2.get("phone_number")
                                         self.auth_manager.record_usage(next_acc.get("phone"), success=True)

@@ -200,7 +200,7 @@ class DivarAPI:
 
     def get_post_details(self, token: str, timeout: int = 15) -> Dict[str, Any]:
         """
-        Fetches detailed information of an ad (description, all attributes, photos).
+        Fetches detailed information of an ad (description, all attributes, photos, contact_uuid).
         Does NOT require login.
         """
         url = f"{self.BASE_URL}/posts-v2/web/{token}"
@@ -212,6 +212,8 @@ class DivarAPI:
         seo = data.get("seo", {})
         schema = seo.get("post_seo_schema", {})
         web_info = seo.get("web_info", {})
+        contact_info = data.get("contact", {})
+        contact_uuid = contact_info.get("contact_uuid", "")
 
         title = seo.get("title") or schema.get("name") or ""
         description = schema.get("description") or seo.get("description") or ""
@@ -255,29 +257,64 @@ class DivarAPI:
             "unavailable_after": unavailable_after,
             "images": images,
             "attributes": attributes,
+            "contact_uuid": contact_uuid,
             "url": f"https://divar.ir/v/{token}"
         }
 
-    def get_contact_info(self, token: str, auth_token: str, timeout: int = 15) -> Dict[str, Any]:
+    def get_contact_info(
+        self,
+        token: str,
+        auth_token: str,
+        contact_uuid: Optional[str] = None,
+        timeout: int = 15
+    ) -> Dict[str, Any]:
         """
         Retrieves phone number for an ad using an authenticated session token.
-        Returns: {'success': bool, 'phone_number': Optional[str], 'quota_exceeded': bool, 'error': str}
+        Uses Divar's v8 endpoint: POST https://api.divar.ir/v8/postcontact/web/contact_info_v2/{token}
         """
-        url = f"{self.BASE_URL}/post-contact/web/{token}"
+        # If contact_uuid was not passed, fetch it from post details
+        if not contact_uuid:
+            details = self.get_post_details(token)
+            contact_uuid = details.get("contact_uuid")
+
+        url = f"{self.BASE_URL}/postcontact/web/contact_info_v2/{token}"
         headers = dict(self.DEFAULT_HEADERS)
         headers["authorization"] = f"Basic {auth_token}" if not auth_token.startswith("Basic ") else auth_token
+        headers["content-type"] = "application/json"
+        headers["Referer"] = f"https://divar.ir/v/{token}"
+
+        payload = {}
+        if contact_uuid:
+            payload["contact_uuid"] = contact_uuid
 
         try:
-            response = self.session.get(url, headers=headers, timeout=timeout)
+            response = self.session.post(url, json=payload, headers=headers, timeout=timeout)
             
             if response.status_code == 200:
                 resp_data = response.json()
-                raw_text = json.dumps(resp_data, ensure_ascii=False)
                 
-                # Check for phone number pattern 09xxxxxxxxx or +989xxxxxxxxx
-                phones = re.findall(r'(?:(?:\+|00)?98|0)?(9\d{9})', raw_text)
-                if phones:
-                    phone_number = "0" + phones[0]
+                # Check widget_list for CallPhonePayload
+                phone_number = None
+                for widget in resp_data.get("widget_list", []):
+                    w_data = widget.get("data", {})
+                    action = w_data.get("action", {})
+                    payload_data = action.get("payload", {})
+                    if "phone_number" in payload_data:
+                        phone_number = payload_data["phone_number"]
+                        break
+                    val = w_data.get("value", "")
+                    if re.match(r'^(?:0|\+?98)?9\d{9}$', val.replace(" ", "")):
+                        phone_number = val
+                        break
+
+                # Fallback to regex search across response
+                if not phone_number:
+                    raw_text = json.dumps(resp_data, ensure_ascii=False)
+                    phones = re.findall(r'(?:(?:\+|00)?98|0)?(9\d{9})', raw_text)
+                    if phones:
+                        phone_number = "0" + phones[0]
+
+                if phone_number:
                     return {
                         "success": True,
                         "phone_number": phone_number,
@@ -301,14 +338,14 @@ class DivarAPI:
                     "success": False,
                     "phone_number": None,
                     "quota_exceeded": is_quota,
-                    "error": f"HTTP {response.status_code}: {err_text[:100]}"
+                    "error": f"HTTP {response.status_code}: {err_text[:120]}"
                 }
             else:
                 return {
                     "success": False,
                     "phone_number": None,
                     "quota_exceeded": False,
-                    "error": f"HTTP {response.status_code}: {response.text[:100]}"
+                    "error": f"HTTP {response.status_code}: {response.text[:120]}"
                 }
 
         except Exception as e:
