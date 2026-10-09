@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ربات استخراج آگهی دیوار | Divar Scraper Dashboard</title>
+  <!-- Google Fonts: Vazirmatn -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0B0F19;
+      --bg-card: rgba(17, 24, 39, 0.85);
+      --bg-card-hover: rgba(31, 41, 55, 0.7);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-focus: #6366F1;
+      --primary: #4F46E5;
+      --primary-hover: #4338CA;
+      --primary-glow: rgba(79, 70, 229, 0.35);
+      --accent-red: #A62626; /* Divar Red */
+      --accent-emerald: #10B981;
+      --accent-amber: #F59E0B;
+      --text-main: #F9FAFB;
+      --text-muted: #9CA3AF;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(79, 70, 229, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(166, 38, 38, 0.08) 0%, transparent 40%);
+    }
+
+    /* Header */
+    header {
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #A62626, #E11D48);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 900;
+      color: #FFF;
+      box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35);
+    }
+
+    .brand-title h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-title p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #9CA3AF;
+    }
+
+    .status-dot.active {
+      background: var(--accent-emerald);
+      box-shadow: 0 0 10px var(--accent-emerald);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.busy {
+      background: var(--accent-amber);
+      box-shadow: 0 0 10px var(--accent-amber);
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    /* Main Container */
+    main {
+      max-width: 1540px;
+      margin: 0 auto;
+      padding: 24px 32px 48px;
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1080px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #E2E8F0;
+    }
+
+    /* Form Inputs */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #CBD5E1;
+      margin-bottom: 6px;
+    }
+
+    .form-input, .form-select {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      color: #F8FAFC;
+      font-size: 0.92rem;
+      transition: var(--transition);
+      outline: none;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    .form-hint {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    /* Quick city chips */
+    .chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      border-radius: 9999px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: var(--transition);
+    }
+
+    .chip:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--border-focus);
+      color: #FFF;
+    }
+
+    /* Switch toggle */
+    .switch-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      margin-bottom: 16px;
+    }
+
+    .switch-label {
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .switch-subtext {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 46px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #374151;
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--accent-emerald);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 20px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+      transition: var(--transition);
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4F46E5, #6366F1);
+      color: #FFF;
+      box-shadow: 0 4px 14px var(--primary-glow);
+      width: 100%;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #4338CA, #4F46E5);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
+    }
+
+    .btn-danger {
+      background: #EF4444;
+      color: #FFF;
+      width: 100%;
+    }
+
+    .btn-danger:hover {
+      background: #DC2626;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: #E2E8F0;
+      border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* Accounts List */
+    .accounts-box {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      max-height: 220px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+
+    .account-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: rgba(30, 41, 59, 0.5);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .account-phone {
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.5px;
+    }
+
+    .account-meta {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .badge-tag {
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .badge-tag.active {
+      background: rgba(16, 185, 129, 0.15);
+      color: #10B981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-tag.exceeded {
+      background: rgba(245, 158, 11, 0.15);
+      color: #F59E0B;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    /* KPI Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0; left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #4F46E5, transparent);
+    }
+
+    .metric-card.emerald::before { background: linear-gradient(90deg, #10B981, transparent); }
+    .metric-card.amber::before { background: linear-gradient(90deg, #F59E0B, transparent); }
+    .metric-card.rose::before { background: linear-gradient(90deg, #F43F5E, transparent); }
+
+    .metric-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #F8FAFC;
+    }
+
+    /* Live Terminal Console */
+    .terminal-card {
+      background: #090D16;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+
+    .terminal-header {
+      background: rgba(15, 23, 42, 0.9);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .terminal-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .terminal-dot {
+      width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+    }
+
+    .terminal-body {
+      padding: 14px 16px;
+      height: 260px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 0.84rem;
+      line-height: 1.6;
+      direction: rtl;
+      text-align: right;
+    }
+
+    .log-line {
+      margin-bottom: 4px;
+      word-break: break-all;
+    }
+
+    .log-time {
+      color: #64748B;
+      font-size: 0.78rem;
+      margin-left: 8px;
+    }
+
+    .log-tag {
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+      font-size: 0.74rem;
+    }
+
+    .log-tag.info { background: rgba(59, 130, 246, 0.15); color: #60A5FA; }
+    .log-tag.success { background: rgba(16, 185, 129, 0.15); color: #34D399; }
+    .log-tag.warning { background: rgba(245, 158, 11, 0.15); color: #FBBF24; }
+    .log-tag.error { background: rgba(239, 68, 68, 0.15); color: #F87171; }
+
+    /* Results Table */
+    .table-container {
+      overflow-x: auto;
+      max-height: 520px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: right;
+      font-size: 0.88rem;
+    }
+
+    th {
+      background: rgba(15, 23, 42, 0.8);
+      padding: 12px 14px;
+      font-weight: 700;
+      color: #94A3B8;
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: #E2E8F0;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .ad-thumbnail {
+      width: 48px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: 6px;
+      background: #1E293B;
+    }
+
+    .phone-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: rgba(16, 185, 129, 0.12);
+      color: #10B981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.86rem;
+      direction: ltr;
+    }
+
+    .phone-badge.empty {
+      background: rgba(255, 255, 255, 0.04);
+      color: #94A3B8;
+      border: 1px solid transparent;
+      font-weight: 400;
+    }
+
+    /* Modal for OTP */
+    .modal-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      background: #111827;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 28px;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      text-align: center;
+    }
+
+    .modal-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .modal-subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .otp-inputs {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      direction: ltr;
+    }
+
+    .otp-input {
+      width: 60px;
+      height: 60px;
+      font-size: 1.8rem;
+      text-align: center;
+      background: #1E293B;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      color: #FFF;
+      outline: none;
+    }
+
+    .otp-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">د</div>
+      <div class="brand-title">
+        <h1>ربات استخراج اطلاعات دیوار</h1>
+        <p>Divar Scraper Bot & Phone Extractor</p>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="badge-status">
+        <span class="status-dot" id="systemStatusDot"></span>
+        <span id="systemStatusText">آماده</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Column: Controls & Configuration -->
+    <div>
+      <!-- Scraping Settings Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>⚙️ تنظیمات استخراج</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">لینک دسته‌بندی یا جستجوی دیوار:</label>
+          <input type="text" id="targetUrl" class="form-input" placeholder="https://divar.ir/s/mashhad/vehicles" value="https://divar.ir/s/mashhad/vehicles">
+          <div class="form-hint">لینک کامل دسته مورد نظر را از سایت دیوار وارد کنید.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">یا انتخاب سریع شهر:</label>
+          <div class="chips-container">
+            <span class="chip" onclick="setCity('mashhad')">مشهد</span>
+            <span class="chip" onclick="setCity('tehran')">تهران</span>
+            <span class="chip" onclick="setCity('isfahan')">اصفهان</span>
+            <span class="chip" onclick="setCity('shiraz')">شیراز</span>
+            <span class="chip" onclick="setCity('tabriz')">تبریز</span>
+            <span class="chip" onclick="setCity('karaj')">کرج</span>
+            <span class="chip" onclick="setCity('ahvaz')">اهواز</span>
+            <span class="chip" onclick="setCity('qom')">قم</span>
+            <span class="chip" onclick="setCity('rasht')">رشت</span>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <div>
+            <label class="form-label">سقف آگهی مورد نظر:</label>
+            <select id="targetLimit" class="form-select">
+              <option value="50">۵۰ آگهی</option>
+              <option value="100" selected>۱۰۰ آگهی</option>
+              <option value="250">۲۵۰ آگهی</option>
+              <option value="500">۵۰۰ آگهی</option>
+              <option value="1000">۱,۰۰۰ آگهی</option>
+              <option value="0">تمام آگهی‌ها (نامحدود)</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">تاخیر استخراج شماره (ثانیه):</label>
+            <select id="delayRange" class="form-select">
+              <option value="2-4">۲ الی ۴ ثانیه (معمولی)</option>
+              <option value="3-6" selected>۳ الی ۶ ثانیه (توصیه شده)</option>
+              <option value="5-10">۵ الی ۱۰ ثانیه (بسیار امن)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Phone extraction toggle -->
+        <div class="switch-container">
+          <div>
+            <div class="switch-label">استخراج شماره تماس آگهی‌دهنده</div>
+            <div class="switch-subtext">نیازمند ورود به حداقل یک اکانت دیوار است</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="extractPhoneToggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button id="startBtn" class="btn btn-primary" onclick="startScraper()">
+            <span>▶️ شروع جمع‌آوری اطلاعات</span>
+          </button>
+          <button id="stopBtn" class="btn btn-danger" style="display: none;" onclick="stopScraper()">
+            <span>⏹ توقف</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Accounts Management Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>📱 مدیریت حساب‌های دیوار (سهمیه شماره)</span>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+          دیوار برای هر اکانت سقف روزانه تعیین می‌کند. می‌توانید چند شماره اضافه کنید تا در صورت اتمام سهمیه، ربات خودکار بین آنها بچرخد.
+        </p>
+
+        <!-- Current accounts -->
+        <div class="accounts-box" id="accountsList">
+          <div style="text-align: center; color: var(--text-muted); font-size: 0.82rem; padding: 12px;">
+            در حال بارگذاری اکانت‌ها...
+          </div>
+        </div>
+
+        <!-- Add account form -->
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+          <input type="tel" id="newPhoneInput" class="form-input" placeholder="09xxxxxxxxx" style="direction: ltr; text-align: center;">
+          <button class="btn btn-secondary" style="white-space: nowrap;" onclick="requestOtp()">
+            <span>ارسال کد پیامکی</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Metrics, Live Logs & Results -->
+    <div>
+      <!-- KPI Metrics -->
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">آگهی‌های دیده‌شده</div>
+          <div class="metric-value" id="kpiFound">۰</div>
+        </div>
+        <div class="metric-card emerald">
+          <div class="metric-label">آگهی‌های ذخیره‌شده</div>
+          <div class="metric-value" id="kpiSaved">۰</div>
+        </div>
+        <div class="metric-card amber">
+          <div class="metric-label">شماره‌های استخراج‌شده</div>
+          <div class="metric-value" id="kpiPhones">۰</div>
+        </div>
+        <div class="metric-card rose">
+          <div class="metric-label">صفحه در حال بررسی</div>
+          <div class="metric-value" id="kpiPage">۰</div>
+        </div>
+      </div>
+
+      <!-- Live Terminal Console -->
+      <div class="terminal-card">
+        <div class="terminal-header">
+          <div class="terminal-title">
+            <span class="terminal-dot" style="background: #10B981;"></span>
+            <span>کنسول زنده‌ی عملیات ربات (Live Execution Logs)</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.76rem;" onclick="clearLogs()">
+              پاکسازی
+            </button>
+          </div>
+        </div>
+        <div class="terminal-body" id="terminalLog">
+          <div class="log-line">
+            <span class="log-time">[--:--:--]</span>
+            <span class="log-tag info">INFO</span>
+            <span>سامانه آماده دریافت دستور است.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Table Card -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+          <div class="card-title" style="margin-bottom: 0;">
+            <span>📋 آگهی‌های جمع‌آوری شده</span>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" onclick="exportData('excel')">
+              <span>📥 دانلود اکسل (.xlsx)</span>
+            </button>
+            <button class="btn btn-secondary" onclick="exportData('csv')">
+              <span>📄 دانلود CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 60px;">تصویر</th>
+                <th>عنوان آگهی</th>
+                <th>شماره تماس</th>
+                <th>قیمت</th>
+                <th>شهر / محله</th>
+                <th style="width: 80px;">مشاهده</th>
+              </tr>
+            </thead>
+            <tbody id="adsTableBody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                  هنوز آگهی‌ای استخراج نشده است. دکمه شروع را بزنید.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- OTP Modal -->
+  <div class="modal-backdrop" id="otpModal">
+    <div class="modal">
+      <div class="modal-title">تایید شماره تلفن در دیوار</div>
+      <div class="modal-subtitle">
+        کد ارسال‌شده به شماره <span id="otpTargetPhone" style="font-weight: 700; color: #6366F1;"></span> را وارد نمایید:
+      </div>
+      <div class="otp-inputs">
+        <input type="text" id="otpCode" class="otp-input" maxlength="6" style="width: 180px; letter-spacing: 8px;" placeholder="• • • •">
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn btn-primary" onclick="verifyOtp()">تایید و ذخیره اکانت</button>
+        <button class="btn btn-secondary" onclick="closeOtpModal()">انصراف</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let currentScraping = false;
+    let ws = null;
+    let pendingPhone = "";
+
+    // Connect WebSocket
+    function connectWS() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/live`;
+      ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'log') {
+            appendLog(msg.data);
+          } else if (msg.type === 'status') {
+            updateStatus(msg.data);
+          } else if (msg.type === 'new_ad') {
+            prependAdRow(msg.data);
+          } else if (msg.type === 'init_logs') {
+            msg.data.forEach(appendLog);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      ws.onclose = () => {
+        setTimeout(connectWS, 2000);
+      };
+    }
+
+    // Set city shortcut
+    function setCity(city) {
+      const urlInput = document.getElementById('targetUrl');
+      const val = urlInput.value;
+      if (val.includes('/s/')) {
+        urlInput.value = val.replace(/\/s\/[^\/]+/, `/s/${city}`);
+      } else {
+        urlInput.value = `https://divar.ir/s/${city}/vehicles`;
+      }
+    }
+
+    // Append log
+    function appendLog(item) {
+      const body = document.getElementById('terminalLog');
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      div.innerHTML = `
+        <span class="log-time">[${item.time}]</span>
+        <span class="log-tag ${item.level}">${item.level.toUpperCase()}</span>
+        <span>${item.message}</span>
+      `;
+      body.appendChild(div);
+      body.scrollTop = body.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('terminalLog').innerHTML = '';
+    }
+
+    // Update status
+    function updateStatus(stats) {
+      document.getElementById('kpiFound').textContent = stats.total_found.toLocaleString('fa-IR');
+      document.getElementById('kpiSaved').textContent = stats.saved_count.toLocaleString('fa-IR');
+      document.getElementById('kpiPhones').textContent = stats.phones_extracted.toLocaleString('fa-IR');
+      document.getElementById('kpiPage').textContent = (stats.current_page || 0).toLocaleString('fa-IR');
+
+      const dot = document.getElementById('systemStatusDot');
+      const text = document.getElementById('systemStatusText');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+
+      if (stats.status === 'running') {
+        currentScraping = true;
+        dot.className = 'status-dot active';
+        text.textContent = 'در حال استخراج...';
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-flex';
+      } else {
+        currentScraping = false;
+        dot.className = 'status-dot';
+        text.textContent = stats.status === 'finished' ? 'تکمیل شد' : 'آماده';
+        startBtn.style.display = 'inline-flex';
+        stopBtn.style.display = 'none';
+      }
+    }
+
+    // Start Scraper
+    async function startScraper() {
+      const url = document.getElementById('targetUrl').value.trim();
+      const limit = parseInt(document.getElementById('targetLimit').value);
+      const getPhone = document.getElementById('extractPhoneToggle').checked;
+      const delayVal = document.getElementById('delayRange').value.split('-');
+
+      const payload = {
+        url: url,
+        limit: limit,
+        get_phone: getPhone,
+        delay_min: parseFloat(delayVal[0]),
+        delay_max: parseFloat(delayVal[1])
+      };
+
+      try {
+        const res = await fetch('/api/scraper/start', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data.success && data.message) {
+          alert(data.message);
+        }
+      } catch (e) {
+        alert('خطا در شروع ربات: ' + e);
+      }
+    }
+
+    // Stop Scraper
+    async function stopScraper() {
+      await fetch('/api/scraper/stop', {method: 'POST'});
+    }
+
+    // Prepend Ad row to Table
+    function prependAdRow(ad) {
+      const tbody = document.getElementById('adsTableBody');
+      // Remove empty state if present
+      if (tbody.children.length === 1 && tbody.children[0].innerText.includes('هنوز آگهی‌ای')) {
+        tbody.innerHTML = '';
+      }
+
+      const tr = document.createElement('tr');
+      const phoneHtml = ad.phone_number 
+        ? `<span class="phone-badge">${ad.phone_number}</span>`
+        : `<span class="phone-badge empty">نامشخص</span>`;
+
+      const imgHtml = ad.image_url 
+        ? `<img src="${ad.image_url}" class="ad-thumbnail" alt="">`
+        : `<div class="ad-thumbnail" style="display:flex;align-items:center;justify-content:center;color:#64748B;">بدون عکس</div>`;
+
+      tr.innerHTML = `
+        <td>${imgHtml}</td>
+        <td style="font-weight:600;">${ad.title || 'بدون عنوان'}</td>
+        <td>${phoneHtml}</td>
+        <td style="color:#FBBF24;">${ad.price || 'توافقی'}</td>
+        <td style="color:#94A3B8;">${ad.city_persian || ad.city || ''} ${ad.district ? '، ' + ad.district : ''}</td>
+        <td><a href="${ad.url}" target="_blank" class="btn btn-secondary" style="padding:4px 8px;font-size:0.75rem;">مشاهده ↗</a></td>
+      `;
+
+      tbody.insertBefore(tr, tbody.firstChild);
+
+      // Keep table limited to 50 rows in DOM
+      if (tbody.children.length > 50) {
+        tbody.removeChild(tbody.lastChild);
+      }
+    }
+
+    // Accounts
+    async function loadAccounts() {
+      try {
+        const res = await fetch('/api/accounts');
+        const accounts = await res.json();
+        const container = document.getElementById('accountsList');
+        if (!accounts || accounts.length === 0) {
+          container.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted); font-size: 0.82rem; padding: 12px;">
+              هیچ حسابی ثبت نشده است. شماره موبایل خود را وارد نمایید.
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = accounts.map(a => `
+          <div class="account-item">
+            <div>
+              <div class="account-phone">${a.phone}</div>
+              <div class="account-meta">امروز: ${a.used_today} شماره | کل: ${a.total_extracted}</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge-tag ${a.status === 'active' ? 'active' : 'exceeded'}">
+                ${a.status === 'active' ? 'فعال' : 'سقف پر شد'}
+              </span>
+              <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.72rem; color: #EF4444;" onclick="deleteAccount('${a.phone}')">حذف</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function requestOtp() {
+      const phone = document.getElementById('newPhoneInput').value.trim();
+      if (!phone || phone.length < 10) {
+        alert('لطفا شماره همراه معتبر وارد کنید (مثال: 09121234567)');
+        return;
+      }
+      pendingPhone = phone;
+
+      try {
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({phone})
+        });
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById('otpTargetPhone').textContent = phone;
+          document.getElementById('otpCode').value = '';
+          document.getElementById('otpModal').classList.add('open');
+          document.getElementById('otpCode').focus();
+        } else {
+          alert('خطا در ارسال پیامک: ' + (data.detail || data.error));
+        }
+      } catch (e) {
+        alert('خطای ارتباط: ' + e);
+      }
+    }
+
+    async function verifyOtp() {
+      const code = document.getElementById('otpCode').value.trim();
+      if (!code) {
+        alert('لطفا کد تایید را وارد کنید');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({phone: pendingPhone, code: code})
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeOtpModal();
+          document.getElementById('newPhoneInput').value = '';
+          loadAccounts();
+          alert('حساب شما با موفقیت متصل شد!');
+        } else {
+          alert('خطا: ' + (data.detail || 'کد نادرست است'));
+        }
+      } catch (e) {
+        alert('خطا: ' + e);
+      }
+    }
+
+    function closeOtpModal() {
+      document.getElementById('otpModal').classList.remove('open');
+    }
+
+    async function deleteAccount(phone) {
+      if (confirm(`آیا از حذف حساب ${phone} مطمئن هستید؟`)) {
+        await fetch(`/api/accounts/${phone}`, {method: 'DELETE'});
+        loadAccounts();
+      }
+    }
+
+    // Export Data
+    function exportData(type) {
+      window.open(`/api/export/${type}`, '_blank');
+    }
+
+    // Initial load
+    async function loadInitialAds() {
+      try {
+        const res = await fetch('/api/ads?limit=25');
+        const data = await res.json();
+        if (data.ads && data.ads.length > 0) {
+          const tbody = document.getElementById('adsTableBody');
+          tbody.innerHTML = '';
+          data.ads.forEach(ad => prependAdRow(ad));
+        }
+        if (data.counts) {
+          document.getElementById('kpiSaved').textContent = data.counts.total_ads.toLocaleString('fa-IR');
+          document.getElementById('kpiPhones').textContent = data.counts.with_phone.toLocaleString('fa-IR');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    window.onload = () => {
+      connectWS();
+      loadAccounts();
+      loadInitialAds();
+    };
+  </script>
+</body>
+</html>
