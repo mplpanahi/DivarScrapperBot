@@ -2,17 +2,15 @@ import os
 import json
 import asyncio
 from typing import Dict, Any, List
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from divar_api import DivarAPI
 from auth_manager import AuthManager
 from database import Database
 from scraper_engine import ScraperEngine
-
-app = FastAPI(title="Divar Scraper Bot")
 
 # Initialize modules
 db = Database("data/divar_scraper.db")
@@ -22,8 +20,8 @@ divar_api = DivarAPI()
 
 # Connected WebSocket clients
 active_websockets: List[WebSocket] = []
+main_loop = None
 
-# Broadcast function
 async def broadcast_ws(message: dict):
     for ws in list(active_websockets):
         try:
@@ -32,11 +30,8 @@ async def broadcast_ws(message: dict):
             if ws in active_websockets:
                 active_websockets.remove(ws)
 
-# Loop reference for thread-safe websocket broadcasts
-main_loop = None
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global main_loop
     main_loop = asyncio.get_running_loop()
 
@@ -62,6 +57,9 @@ async def startup_event():
     scraper.subscribe_log(on_log)
     scraper.subscribe_ad(on_ad)
     scraper.subscribe_status(on_status)
+    yield
+
+app = FastAPI(title="Divar Scraper Bot", lifespan=lifespan)
 
 # Pydantic models
 class SendOtpRequest(BaseModel):
@@ -119,7 +117,16 @@ def verify_otp(req: VerifyOtpRequest):
 def start_scraper(req: StartScraperRequest):
     if scraper.is_running:
         return {"success": False, "message": "ربات در حال حاضر در حال اجرا است."}
-    
+
+    # Validate active accounts if phone extraction is requested
+    if req.get_phone:
+        active_accounts = [a for a in auth_manager.get_accounts() if a.get("status") == "active"]
+        if not active_accounts:
+            return {
+                "success": False,
+                "message": "⚠️ برای استخراج شماره تماس، باید حداقل یک حساب فعال دیوار ثبت کرده باشید! لطفاً ابتدا با شماره موبایل خود لاگین کنید یا تیک «استخراج شماره تماس» را بردارید."
+            }
+
     success = scraper.start(req.dict())
     return {"success": success}
 
@@ -169,13 +176,17 @@ def export_csv():
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     active_websockets.append(websocket)
-    # Send current state
-    await websocket.send_json({"type": "status", "data": scraper.stats})
-    await websocket.send_json({"type": "init_logs", "data": scraper.recent_logs[-30:]})
     try:
+        # Send initial state
+        await websocket.send_json({"type": "status", "data": scraper.stats})
+        await websocket.send_json({"type": "init_logs", "data": scraper.recent_logs[-30:]})
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
         if websocket in active_websockets:
             active_websockets.remove(websocket)
 

@@ -12,13 +12,12 @@
     :root {
       --bg-main: #0B0F19;
       --bg-card: rgba(17, 24, 39, 0.85);
-      --bg-card-hover: rgba(31, 41, 55, 0.7);
       --border-color: rgba(255, 255, 255, 0.08);
       --border-focus: #6366F1;
       --primary: #4F46E5;
       --primary-hover: #4338CA;
       --primary-glow: rgba(79, 70, 229, 0.35);
-      --accent-red: #A62626; /* Divar Red */
+      --accent-red: #A62626;
       --accent-emerald: #10B981;
       --accent-amber: #F59E0B;
       --text-main: #F9FAFB;
@@ -330,6 +329,7 @@
       background: #EF4444;
       color: #FFF;
       width: 100%;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
     }
 
     .btn-danger:hover {
@@ -347,7 +347,7 @@
     }
 
     .btn:disabled {
-      opacity: 0.5;
+      opacity: 0.6;
       cursor: not-allowed;
       transform: none !important;
       box-shadow: none !important;
@@ -403,6 +403,19 @@
       background: rgba(245, 158, 11, 0.15);
       color: #F59E0B;
       border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    /* Alert Banner */
+    .alert-banner {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #FCD34D;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      margin-bottom: 14px;
+      line-height: 1.5;
+      display: none;
     }
 
     /* KPI Metrics Grid */
@@ -628,15 +641,16 @@
     }
 
     .otp-input {
-      width: 60px;
-      height: 60px;
-      font-size: 1.8rem;
+      width: 180px;
+      height: 52px;
+      font-size: 1.6rem;
       text-align: center;
       background: #1E293B;
       border: 1px solid var(--border-color);
       border-radius: 10px;
       color: #FFF;
       outline: none;
+      letter-spacing: 6px;
     }
 
     .otp-input:focus {
@@ -723,28 +737,32 @@
             <div class="switch-subtext">نیازمند ورود به حداقل یک اکانت دیوار است</div>
           </div>
           <label class="switch">
-            <input type="checkbox" id="extractPhoneToggle" checked>
+            <input type="checkbox" id="extractPhoneToggle" checked onchange="togglePhoneExtractionNotice()">
             <span class="slider"></span>
           </label>
         </div>
 
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <div class="alert-banner" id="noAccountAlert">
+          ⚠️ توجه: گزینه استخراج شماره فعال است اما حسابی ثبت نشده است. لطفاً ابتدا در کادر زیر شماره موبایل خود را تایید کنید، یا تیک استخراج شماره را خاموش نمایید.
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
           <button id="startBtn" class="btn btn-primary" onclick="startScraper()">
             <span>▶️ شروع جمع‌آوری اطلاعات</span>
           </button>
           <button id="stopBtn" class="btn btn-danger" style="display: none;" onclick="stopScraper()">
-            <span>⏹ توقف</span>
+            <span>⏹ توقف عملیات</span>
           </button>
         </div>
       </div>
 
       <!-- Accounts Management Card -->
-      <div class="card">
+      <div class="card" id="accountsCard">
         <div class="card-title">
           <span>📱 مدیریت حساب‌های دیوار (سهمیه شماره)</span>
         </div>
         <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
-          دیوار برای هر اکانت سقف روزانه تعیین می‌کند. می‌توانید چند شماره اضافه کنید تا در صورت اتمام سهمیه، ربات خودکار بین آنها بچرخد.
+          دیوار برای هر شماره روزانه سقف محدودی دارد. می‌توانید چند شماره اضافه کنید تا ربات به صورت خودکار بین اکانت‌ها بچرخد.
         </p>
 
         <!-- Current accounts -->
@@ -756,8 +774,8 @@
 
         <!-- Add account form -->
         <div style="display: flex; gap: 8px; margin-top: 10px;">
-          <input type="tel" id="newPhoneInput" class="form-input" placeholder="09xxxxxxxxx" style="direction: ltr; text-align: center;">
-          <button class="btn btn-secondary" style="white-space: nowrap;" onclick="requestOtp()">
+          <input type="tel" id="newPhoneInput" class="form-input" placeholder="09xxxxxxxxx" style="direction: ltr; text-align: center;" maxlength="11">
+          <button id="sendOtpBtn" class="btn btn-secondary" style="white-space: nowrap;" onclick="requestOtp()">
             <span>ارسال کد پیامکی</span>
           </button>
         </div>
@@ -790,7 +808,7 @@
       <div class="terminal-card">
         <div class="terminal-header">
           <div class="terminal-title">
-            <span class="terminal-dot" style="background: #10B981;"></span>
+            <span class="terminal-dot" id="terminalLiveDot" style="background: #10B981;"></span>
             <span>کنسول زنده‌ی عملیات ربات (Live Execution Logs)</span>
           </div>
           <div style="display: flex; gap: 8px;">
@@ -801,7 +819,7 @@
         </div>
         <div class="terminal-body" id="terminalLog">
           <div class="log-line">
-            <span class="log-time">[--:--:--]</span>
+            <span class="log-time">[آماده]</span>
             <span class="log-tag info">INFO</span>
             <span>سامانه آماده دریافت دستور است.</span>
           </div>
@@ -857,10 +875,10 @@
         کد ارسال‌شده به شماره <span id="otpTargetPhone" style="font-weight: 700; color: #6366F1;"></span> را وارد نمایید:
       </div>
       <div class="otp-inputs">
-        <input type="text" id="otpCode" class="otp-input" maxlength="6" style="width: 180px; letter-spacing: 8px;" placeholder="• • • •">
+        <input type="text" id="otpCode" class="otp-input" maxlength="6" placeholder="• • • •">
       </div>
       <div style="display: flex; gap: 10px;">
-        <button class="btn btn-primary" onclick="verifyOtp()">تایید و ذخیره اکانت</button>
+        <button id="verifyBtn" class="btn btn-primary" onclick="verifyOtp()">تایید و ذخیره اکانت</button>
         <button class="btn btn-secondary" onclick="closeOtpModal()">انصراف</button>
       </div>
     </div>
@@ -871,33 +889,49 @@
     let currentScraping = false;
     let ws = null;
     let pendingPhone = "";
+    let activeAccountsCount = 0;
+    let pollInterval = null;
 
-    // Connect WebSocket
+    // Connect WebSocket with auto reconnect and polling fallback
     function connectWS() {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws/live`;
-      ws = new WebSocket(wsUrl);
+      
+      try {
+        ws = new WebSocket(wsUrl);
 
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.type === 'log') {
-            appendLog(msg.data);
-          } else if (msg.type === 'status') {
-            updateStatus(msg.data);
-          } else if (msg.type === 'new_ad') {
-            prependAdRow(msg.data);
-          } else if (msg.type === 'init_logs') {
-            msg.data.forEach(appendLog);
+        ws.onopen = () => {
+          document.getElementById('terminalLiveDot').style.background = '#10B981';
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'log') {
+              appendLog(msg.data);
+            } else if (msg.type === 'status') {
+              updateStatus(msg.data);
+            } else if (msg.type === 'new_ad') {
+              prependAdRow(msg.data);
+            } else if (msg.type === 'init_logs') {
+              msg.data.forEach(appendLog);
+            }
+          } catch (e) {
+            console.error(e);
           }
-        } catch (e) {
-          console.error(e);
-        }
-      };
+        };
 
-      ws.onclose = () => {
-        setTimeout(connectWS, 2000);
-      };
+        ws.onclose = () => {
+          document.getElementById('terminalLiveDot').style.background = '#F59E0B';
+          setTimeout(connectWS, 2500);
+        };
+
+        ws.onerror = () => {
+          document.getElementById('terminalLiveDot').style.background = '#EF4444';
+        };
+      } catch (e) {
+        console.error('WS Connection error:', e);
+      }
     }
 
     // Set city shortcut
@@ -929,11 +963,12 @@
       document.getElementById('terminalLog').innerHTML = '';
     }
 
-    // Update status
+    // Update status UI
     function updateStatus(stats) {
-      document.getElementById('kpiFound').textContent = stats.total_found.toLocaleString('fa-IR');
-      document.getElementById('kpiSaved').textContent = stats.saved_count.toLocaleString('fa-IR');
-      document.getElementById('kpiPhones').textContent = stats.phones_extracted.toLocaleString('fa-IR');
+      if (!stats) return;
+      document.getElementById('kpiFound').textContent = (stats.total_found || 0).toLocaleString('fa-IR');
+      document.getElementById('kpiSaved').textContent = (stats.saved_count || 0).toLocaleString('fa-IR');
+      document.getElementById('kpiPhones').textContent = (stats.phones_extracted || 0).toLocaleString('fa-IR');
       document.getElementById('kpiPage').textContent = (stats.current_page || 0).toLocaleString('fa-IR');
 
       const dot = document.getElementById('systemStatusDot');
@@ -947,21 +982,53 @@
         text.textContent = 'در حال استخراج...';
         startBtn.style.display = 'none';
         stopBtn.style.display = 'inline-flex';
+        stopBtn.disabled = false;
+        stopBtn.innerHTML = '<span>⏹ توقف عملیات</span>';
       } else {
         currentScraping = false;
         dot.className = 'status-dot';
-        text.textContent = stats.status === 'finished' ? 'تکمیل شد' : 'آماده';
+        text.textContent = stats.status === 'finished' ? 'تکمیل شد' : (stats.status === 'stopped' ? 'متوقف شد' : 'آماده');
         startBtn.style.display = 'inline-flex';
+        startBtn.disabled = false;
+        startBtn.innerHTML = '<span>▶️ شروع جمع‌آوری اطلاعات</span>';
         stopBtn.style.display = 'none';
       }
     }
 
-    // Start Scraper
+    function togglePhoneExtractionNotice() {
+      const checked = document.getElementById('extractPhoneToggle').checked;
+      const banner = document.getElementById('noAccountAlert');
+      if (checked && activeAccountsCount === 0) {
+        banner.style.display = 'block';
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+
+    // Start Scraper with validation
     async function startScraper() {
       const url = document.getElementById('targetUrl').value.trim();
       const limit = parseInt(document.getElementById('targetLimit').value);
       const getPhone = document.getElementById('extractPhoneToggle').checked;
       const delayVal = document.getElementById('delayRange').value.split('-');
+
+      // Check phone account validation
+      if (getPhone && activeAccountsCount === 0) {
+        alert('⚠️ برای استخراج شماره تماس، باید ابتدا حداقل یک حساب فعال دیوار ثبت کنید!\n\nلطفاً در کادر «مدیریت حساب‌های دیوار» شماره موبایل خود را وارد کرده و کد پیامکی را تایید کنید، یا تیک «استخراج شماره تماس» را بردارید.');
+        const phoneInput = document.getElementById('newPhoneInput');
+        phoneInput.focus();
+        phoneInput.style.borderColor = '#EF4444';
+        phoneInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.4)';
+        setTimeout(() => {
+          phoneInput.style.borderColor = '';
+          phoneInput.style.boxShadow = '';
+        }, 3000);
+        return;
+      }
+
+      const startBtn = document.getElementById('startBtn');
+      startBtn.disabled = true;
+      startBtn.innerHTML = '<span>⏳ در حال اتصال...</span>';
 
       const payload = {
         url: url,
@@ -978,35 +1045,71 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (!data.success && data.message) {
-          alert(data.message);
+        if (data.success) {
+          // Immediately reflect UI state
+          updateStatus({
+            status: 'running',
+            total_found: 0,
+            saved_count: 0,
+            phones_extracted: 0,
+            current_page: 1
+          });
+          appendLog({
+            time: new Date().toLocaleTimeString('fa-IR'),
+            level: 'info',
+            message: 'عملیات استخراج توسط کاربر آغاز شد.'
+          });
+        } else {
+          alert(data.message || 'خطا در شروع عملیات');
+          startBtn.disabled = false;
+          startBtn.innerHTML = '<span>▶️ شروع جمع‌آوری اطلاعات</span>';
         }
       } catch (e) {
-        alert('خطا در شروع ربات: ' + e);
+        alert('خطای اتصال به سرور: ' + e);
+        startBtn.disabled = false;
+        startBtn.innerHTML = '<span>▶️ شروع جمع‌آوری اطلاعات</span>';
       }
     }
 
     // Stop Scraper
     async function stopScraper() {
-      await fetch('/api/scraper/stop', {method: 'POST'});
+      const stopBtn = document.getElementById('stopBtn');
+      stopBtn.disabled = true;
+      stopBtn.innerHTML = '<span>⏳ در حال توقف...</span>';
+      try {
+        await fetch('/api/scraper/stop', {method: 'POST'});
+        appendLog({
+          time: new Date().toLocaleTimeString('fa-IR'),
+          level: 'warning',
+          message: 'دستور توقف به ربات ارسال شد.'
+        });
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     // Prepend Ad row to Table
     function prependAdRow(ad) {
       const tbody = document.getElementById('adsTableBody');
-      // Remove empty state if present
       if (tbody.children.length === 1 && tbody.children[0].innerText.includes('هنوز آگهی‌ای')) {
         tbody.innerHTML = '';
       }
 
+      // Check if row already exists in table
+      if (document.getElementById(`row-${ad.token}`)) {
+        return;
+      }
+
       const tr = document.createElement('tr');
+      tr.id = `row-${ad.token}`;
+
       const phoneHtml = ad.phone_number 
         ? `<span class="phone-badge">${ad.phone_number}</span>`
         : `<span class="phone-badge empty">نامشخص</span>`;
 
       const imgHtml = ad.image_url 
         ? `<img src="${ad.image_url}" class="ad-thumbnail" alt="">`
-        : `<div class="ad-thumbnail" style="display:flex;align-items:center;justify-content:center;color:#64748B;">بدون عکس</div>`;
+        : `<div class="ad-thumbnail" style="display:flex;align-items:center;justify-content:center;color:#64748B;font-size:0.75rem;">بدون عکس</div>`;
 
       tr.innerHTML = `
         <td>${imgHtml}</td>
@@ -1019,22 +1122,25 @@
 
       tbody.insertBefore(tr, tbody.firstChild);
 
-      // Keep table limited to 50 rows in DOM
       if (tbody.children.length > 50) {
         tbody.removeChild(tbody.lastChild);
       }
     }
 
-    // Accounts
+    // Accounts management
     async function loadAccounts() {
       try {
         const res = await fetch('/api/accounts');
         const accounts = await res.json();
         const container = document.getElementById('accountsList');
+        
+        activeAccountsCount = (accounts || []).filter(a => a.status === 'active').length;
+        togglePhoneExtractionNotice();
+
         if (!accounts || accounts.length === 0) {
           container.innerHTML = `
             <div style="text-align: center; color: var(--text-muted); font-size: 0.82rem; padding: 12px;">
-              هیچ حسابی ثبت نشده است. شماره موبایل خود را وارد نمایید.
+              هیچ حسابی ثبت نشده است. شماره موبایل خود را در کادر زیر وارد کنید.
             </div>`;
           return;
         }
@@ -1043,7 +1149,7 @@
           <div class="account-item">
             <div>
               <div class="account-phone">${a.phone}</div>
-              <div class="account-meta">امروز: ${a.used_today} شماره | کل: ${a.total_extracted}</div>
+              <div class="account-meta">استخراج امروز: ${a.used_today} شماره | کل: ${a.total_extracted}</div>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span class="badge-tag ${a.status === 'active' ? 'active' : 'exceeded'}">
@@ -1059,12 +1165,18 @@
     }
 
     async function requestOtp() {
-      const phone = document.getElementById('newPhoneInput').value.trim();
+      const phoneInput = document.getElementById('newPhoneInput');
+      const phone = phoneInput.value.trim();
       if (!phone || phone.length < 10) {
         alert('لطفا شماره همراه معتبر وارد کنید (مثال: 09121234567)');
+        phoneInput.focus();
         return;
       }
       pendingPhone = phone;
+
+      const btn = document.getElementById('sendOtpBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span>در حال ارسال...</span>';
 
       try {
         const res = await fetch('/api/auth/send-otp', {
@@ -1077,12 +1189,15 @@
           document.getElementById('otpTargetPhone').textContent = phone;
           document.getElementById('otpCode').value = '';
           document.getElementById('otpModal').classList.add('open');
-          document.getElementById('otpCode').focus();
+          setTimeout(() => document.getElementById('otpCode').focus(), 100);
         } else {
           alert('خطا در ارسال پیامک: ' + (data.detail || data.error));
         }
       } catch (e) {
-        alert('خطای ارتباط: ' + e);
+        alert('خطای ارتباط با سرور: ' + e);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>ارسال کد پیامکی</span>';
       }
     }
 
@@ -1092,6 +1207,10 @@
         alert('لطفا کد تایید را وارد کنید');
         return;
       }
+
+      const btn = document.getElementById('verifyBtn');
+      btn.disabled = true;
+      btn.innerHTML = 'در حال بررسی...';
 
       try {
         const res = await fetch('/api/auth/verify-otp', {
@@ -1103,13 +1222,16 @@
         if (data.success) {
           closeOtpModal();
           document.getElementById('newPhoneInput').value = '';
-          loadAccounts();
-          alert('حساب شما با موفقیت متصل شد!');
+          await loadAccounts();
+          alert('حساب با موفقیت متصل شد!');
         } else {
           alert('خطا: ' + (data.detail || 'کد نادرست است'));
         }
       } catch (e) {
         alert('خطا: ' + e);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'تایید و ذخیره اکانت';
       }
     }
 
@@ -1127,6 +1249,32 @@
     // Export Data
     function exportData(type) {
       window.open(`/api/export/${type}`, '_blank');
+    }
+
+    // Background Polling fallback for status & ads
+    async function pollStatus() {
+      try {
+        const res = await fetch('/api/scraper/status');
+        const data = await res.json();
+        if (data && data.stats) {
+          updateStatus(data.stats);
+        }
+        if (data && data.db_counts) {
+          document.getElementById('kpiSaved').textContent = data.db_counts.total_ads.toLocaleString('fa-IR');
+          document.getElementById('kpiPhones').textContent = data.db_counts.with_phone.toLocaleString('fa-IR');
+        }
+
+        // If currently scraping, also refresh latest ads
+        if (currentScraping) {
+          const adsRes = await fetch('/api/ads?limit=15');
+          const adsData = await adsRes.json();
+          if (adsData.ads) {
+            adsData.ads.reverse().forEach(ad => prependAdRow(ad));
+          }
+        }
+      } catch (e) {
+        // Silent poll error
+      }
     }
 
     // Initial load
@@ -1152,6 +1300,8 @@
       connectWS();
       loadAccounts();
       loadInitialAds();
+      // Start polling interval every 2 seconds as robust background sync
+      pollInterval = setInterval(pollStatus, 2000);
     };
   </script>
 </body>
