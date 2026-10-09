@@ -1,3 +1,4 @@
+import os
 import re
 import time
 import json
@@ -5,6 +6,8 @@ import logging
 import urllib.parse
 from typing import Dict, Any, Tuple, List, Optional
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger("divar_api")
 
@@ -22,16 +25,86 @@ class DivarAPI:
         "Referer": "https://divar.ir/",
     }
 
+    COMMON_CITIES = {
+        "tehran": "1",
+        "karaj": "2",
+        "mashhad": "3",
+        "isfahan": "4",
+        "tabriz": "5",
+        "shiraz": "6",
+        "ahvaz": "7",
+        "qom": "8",
+        "kermanshah": "9",
+        "urmia": "10",
+        "zahedan": "11",
+        "rasht": "12",
+        "kerman": "13",
+        "hamedan": "14",
+        "arak": "15",
+        "yazd": "16",
+        "ardabil": "17",
+        "bandar-abbas": "18",
+        "zanjan": "20",
+        "sanandaj": "21",
+        "qazvin": "22",
+        "khorramabad": "23",
+        "gorgan": "24",
+        "sari": "25",
+        "bojnurd": "28",
+        "bushehr": "29",
+        "birjand": "30",
+        "ilam": "31",
+        "semnan": "33",
+        "yasuj": "35",
+        "shahr-e-kord": "36",
+    }
+
     def __init__(self, session: Optional[requests.Session] = None):
         self.session = session or requests.Session()
         self.session.headers.update(self.DEFAULT_HEADERS)
+        
+        # Setup retry adapter for stable connection to Sotoon CDN
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
+
+        self.city_map = self._load_city_map()
+
+    def _load_city_map(self) -> Dict[str, str]:
+        path = "data/city_map.json"
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return dict(self.COMMON_CITIES)
+
+    def get_city_id(self, city: str) -> str:
+        """Resolves city slug or Persian name to Divar's internal numeric city ID."""
+        c = str(city).strip().lower()
+        if c.isdigit():
+            return c
+        if c in self.COMMON_CITIES:
+            return self.COMMON_CITIES[c]
+        if c in self.city_map:
+            return self.city_map[c]
+        for slug, cid in self.COMMON_CITIES.items():
+            if slug == c:
+                return cid
+        return self.COMMON_CITIES.get("mashhad", "3")
 
     @staticmethod
     def parse_divar_url(url: str) -> Dict[str, Any]:
         """
         Parses a Divar category or search URL.
-        Example: https://divar.ir/s/mashhad/vehicles
-        Returns: {'city': 'mashhad', 'category': 'vehicles', 'query': None, 'filters': {}}
+        Example: https://divar.ir/s/mashhad/jobs
+        Returns: {'city': 'mashhad', 'category': 'jobs', 'query': None, 'filters': {}}
         """
         url = url.strip()
         if not url.startswith("http"):
@@ -41,10 +114,10 @@ class DivarAPI:
         path = parsed.path.strip("/")
         parts = path.split("/")
 
-        city = "iran"
+        city = "mashhad"
         category = "ROOT"
 
-        # e.g., s/mashhad/vehicles or s/tehran
+        # e.g., s/mashhad/jobs or s/tehran
         if len(parts) >= 2 and parts[0] == "s":
             city = parts[1]
             if len(parts) >= 3:
@@ -63,12 +136,8 @@ class DivarAPI:
         }
 
     def request_otp(self, phone: str) -> Dict[str, Any]:
-        """
-        Sends OTP verification SMS to user's phone number.
-        Returns: dict response from Divar
-        """
+        """Sends OTP verification SMS to user's phone number."""
         phone = phone.strip()
-        # Normalization: ensure starting with 0
         if phone.startswith("+98"):
             phone = "0" + phone[3:]
         elif phone.startswith("98"):
@@ -89,9 +158,7 @@ class DivarAPI:
             return {"success": False, "error": msg, "status_code": response.status_code, "phone": phone}
 
     def verify_otp(self, phone: str, code: str) -> Dict[str, Any]:
-        """
-        Submits OTP code and retrieves permanent auth token.
-        """
+        """Submits OTP code and retrieves permanent auth token."""
         phone = phone.strip()
         if phone.startswith("+98"):
             phone = "0" + phone[3:]
@@ -124,12 +191,17 @@ class DivarAPI:
         timeout: int = 15
     ) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
         """
-        Fetches one page of search results.
-        Returns: (list_of_posts, next_pagination_data)
+        Fetches one page of search results for a specific city.
         """
         url = f"{self.BASE_URL}/postlist/w/search"
         
-        city_ids = [city] if city and city != "iran" else ["tehran"]
+        # Resolve to numeric city ID (e.g. '3' for mashhad)
+        if city and city.lower() != "iran":
+            city_id = self.get_city_id(city)
+            city_ids = [city_id]
+        else:
+            city_ids = []
+
         form_data = {}
         if category and category != "ROOT":
             form_data["category"] = {"str": {"value": category}}
@@ -156,7 +228,6 @@ class DivarAPI:
         data = response.json()
         widgets = data.get("list_widgets", [])
         
-        # Extract individual ads
         posts = []
         for w in widgets:
             if w.get("widget_type") == "POST_ROW":
@@ -168,14 +239,12 @@ class DivarAPI:
                 title = post_data.get("title", "")
                 image_url = post_data.get("image_url", "")
                 
-                # Extract pricing or description text
                 desc_lines = []
                 for field in ["top_description_text", "middle_description_text", "bottom_description_text"]:
                     val = post_data.get(field)
                     if val:
                         desc_lines.append(val)
 
-                # Web info (city, district)
                 web_info = post_data.get("action", {}).get("payload", {}).get("web_info", {})
                 district = web_info.get("district_persian", "")
                 city_persian = web_info.get("city_persian", city)
@@ -199,10 +268,7 @@ class DivarAPI:
         return posts, next_page
 
     def get_post_details(self, token: str, timeout: int = 15) -> Dict[str, Any]:
-        """
-        Fetches detailed information of an ad (description, all attributes, photos, contact_uuid).
-        Does NOT require login.
-        """
+        """Fetches detailed information of an ad (description, attributes, photos, contact_uuid)."""
         url = f"{self.BASE_URL}/posts-v2/web/{token}"
         response = self.session.get(url, timeout=timeout)
         if response.status_code != 200:
@@ -223,7 +289,6 @@ class DivarAPI:
         city_persian = web_info.get("city_persian") or ""
         unavailable_after = seo.get("unavailable_after") or ""
 
-        # Extract attributes & images from sections
         attributes = {}
         images = []
         if schema.get("image"):
@@ -234,7 +299,6 @@ class DivarAPI:
             for w in widgets:
                 w_type = w.get("widget_type")
                 w_data = w.get("data", {})
-                # List items (e.g., کارکرد, مدل, وضعیت بدنه)
                 if w_type == "UNEXPANDABLE_ROW":
                     title_attr = w_data.get("title")
                     val_attr = w_data.get("value")
@@ -272,7 +336,6 @@ class DivarAPI:
         Retrieves phone number for an ad using an authenticated session token.
         Uses Divar's v8 endpoint: POST https://api.divar.ir/v8/postcontact/web/contact_info_v2/{token}
         """
-        # If contact_uuid was not passed, fetch it from post details
         if not contact_uuid:
             details = self.get_post_details(token)
             contact_uuid = details.get("contact_uuid")
@@ -293,7 +356,6 @@ class DivarAPI:
             if response.status_code == 200:
                 resp_data = response.json()
                 
-                # Check widget_list for CallPhonePayload
                 phone_number = None
                 for widget in resp_data.get("widget_list", []):
                     w_data = widget.get("data", {})
@@ -307,7 +369,6 @@ class DivarAPI:
                         phone_number = val
                         break
 
-                # Fallback to regex search across response
                 if not phone_number:
                     raw_text = json.dumps(resp_data, ensure_ascii=False)
                     phones = re.findall(r'(?:(?:\+|00)?98|0)?(9\d{9})', raw_text)

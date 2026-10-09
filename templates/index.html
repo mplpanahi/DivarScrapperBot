@@ -839,6 +839,9 @@
             <button class="btn btn-secondary" onclick="exportData('csv')">
               <span>📄 دانلود CSV</span>
             </button>
+            <button class="btn btn-secondary" style="color: #EF4444; border-color: rgba(239, 68, 68, 0.3);" onclick="clearAllData()">
+              <span>🗑 پاکسازی داده‌ها</span>
+            </button>
           </div>
         </div>
 
@@ -1249,6 +1252,38 @@
     // Export Data
     function exportData(type) {
       window.open(`/api/export/${type}`, '_blank');
+    }
+
+    // Clear all ads & database data
+    async function clearAllData() {
+      if (!confirm('آیا از پاکسازی تمامی آگهی‌های ذخیره‌شده و خالی کردن جدول و دیتابیس مطمئن هستید؟')) {
+        return;
+      }
+      try {
+        const res = await fetch('/api/ads/clear', {method: 'POST'});
+        const data = await res.json();
+        if (data.success) {
+          const tbody = document.getElementById('adsTableBody');
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                تمامی داده‌ها پاکسازی شدند. برای استخراج مجدد، دکمه شروع را بزنید.
+              </td>
+            </tr>
+          `;
+          document.getElementById('kpiFound').textContent = '۰';
+          document.getElementById('kpiSaved').textContent = '۰';
+          document.getElementById('kpiPhones').textContent = '۰';
+          document.getElementById('kpiPage').textContent = '۰';
+          appendLog({
+            time: new Date().toLocaleTimeString('fa-IR'),
+            level: 'info',
+            message: 'تمامی آگهی‌های ذخیره‌شده با موفقیت از دیتابیس و جدول پاکسازی شدند.'
+          });
+        }
+      } catch (e) {
+        alert('خطا در پاکسازی داده‌ها: ' + e);
+      }
     }
 
     // Background Polling fallback for status & ads
